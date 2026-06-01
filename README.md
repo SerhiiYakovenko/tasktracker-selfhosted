@@ -236,3 +236,5 @@ The frontend reads a single build-time variable, `VITE_API_BASE_URL` (default `h
 ## License
 
 Released under the MIT License.
+
+<!-- self-host webhook test -->
