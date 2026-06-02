@@ -1,238 +1,240 @@
-# TaskTracker
+# TaskTracker (Self-Hosted AI Review)
 
-A lean, self-hostable task and project management board for small teams — a focused Trello/Linear alternative you can run yourself.
+A production-like task management SPA reviewed in real-time by a **self-hosted AI code reviewer** — the same TaskTracker app from Part A, now paired with your own fork of PR-Agent running as a GitHub App.
 
-TaskTracker pairs a typed FastAPI backend with a React + TypeScript single-page app. Organise work into projects, track tasks across a `todo → in_progress → done` board, set priorities, assignees and due dates, and secure everything behind JWT authentication. It runs on SQLite out of the box and is ready for Postgres in production.
+This repo is part of the **TechLeadConf 2026 workshop** *"AI-Powered Code Review"* and serves as Part B of a hands-on two-part demonstration: after seeing the out-of-the-box marketplace action in Part A, you'll understand how to self-host the same tool, extend it with custom rules, and run it on your own infrastructure. The `demo/add-search` branch contains intentional code-review teaching artifacts — realistic issues for the AI reviewer to surface.
+
+## What this is
+
+A **clean, full-stack app** (FastAPI backend + React/TypeScript frontend, tests, CI) paired with a **GitHub App webhook server** running a fork of PR-Agent with custom code-standard enforcement. The bot auto-reviews pull requests and responds to slash commands like `/check_standards`, which validates code against your team's conventions without leaving the PR.
+
+**For your team:** a template for shipping your own AI code reviewer with fine-grained control — set your model, tune the prompts, deploy once, and let it scale across your repos.
+
+**For this workshop:** a live demo of self-hosting, custom tooling, and incremental review as code changes.
 
 ## Features
 
-- **Projects** — group work into projects scoped to their owner.
-- **Task board** — Kanban-style columns (`todo`, `in_progress`, `done`) with one-call moves between columns.
-- **Rich tasks** — title, description, priority (`low` / `medium` / `high`), assignee and due date.
-- **Filtering & pagination** — list tasks by project, status or assignee with paginated responses.
-- **JWT authentication** — register, log in and call the API with a bearer token; passwords hashed with bcrypt.
-- **Typed end to end** — Pydantic v2 models on the backend mirrored by TypeScript types on the frontend.
-- **Production-shaped** — service layer, dependency injection, centralized config, structured logging, CORS, Docker and CI.
-- **Interactive API docs** — OpenAPI / Swagger UI served automatically by FastAPI at `/docs`.
+- **Kanban board** — organize work in `todo`, `in_progress`, `done` columns with one-click status moves.
+- **Projects & rich tasks** — title, description, priority, assignee, due date per task.
+- **JWT auth** — secure backend, password hashed with bcrypt.
+- **Typed end-to-end** — Pydantic v2 models mirrored by TypeScript; full OpenAPI/Swagger docs.
+- **Production-shaped stack** — service layer, dependency injection, Docker, GitHub Actions CI.
 
-## Architecture
-
-A React SPA talks to a versioned REST API. FastAPI handles routing, validation and auth; a thin service layer holds the business logic; SQLAlchemy 2.x maps the domain to the database. SQLite is the default store and Postgres is a drop-in swap via `DATABASE_URL`.
-
-```mermaid
-flowchart LR
-    subgraph Browser
-        SPA["React 18 + TypeScript SPA<br/>(Vite, React Router)"]
-    end
-
-    subgraph Server["FastAPI backend"]
-        API["REST API<br/>/api/v1"]
-        SVC["Service layer<br/>(users / projects / tasks)"]
-        ORM["SQLAlchemy 2.x ORM"]
-    end
-
-    DB[("SQLite (default)<br/>or Postgres")]
-
-    SPA -- "HTTPS + JWT Bearer" --> API
-    API --> SVC
-    SVC --> ORM
-    ORM --> DB
-```
-
-**Request flow:** the SPA stores a JWT after login and attaches it as an `Authorization: Bearer <token>` header on every call. FastAPI validates the token via a dependency, resolves the current user, and routes the request through the service layer, which owns persistence through SQLAlchemy. Responses are serialized by Pydantic response models (`UserOut` / `ProjectOut` / `TaskOut`), so the password hash never leaves the database.
-
-### Tech stack
+## Tech stack (the app)
 
 | Layer    | Technologies |
 |----------|--------------|
-| Frontend | React 18, TypeScript, Vite, React Router, CSS Modules, Vitest + Testing Library, ESLint |
-| Backend  | Python 3.12, FastAPI, SQLAlchemy 2.x, Pydantic v2 + pydantic-settings, python-jose (JWT), passlib[bcrypt], uvicorn, pytest, ruff |
-| Data     | SQLite by default; Postgres-ready via `DATABASE_URL` |
-| Ops      | Docker, docker-compose, GitHub Actions CI |
+| Frontend | React 18, TypeScript, Vite, React Router, CSS Modules, Vitest + Testing Library |
+| Backend  | Python 3.12, FastAPI, SQLAlchemy 2.x, Pydantic v2, JWT (python-jose), bcrypt, pytest |
+| Data     | SQLite (default); Postgres-ready via `DATABASE_URL` |
+| Ops      | Docker, docker-compose, GitHub Actions |
 
-## Project structure
+### How the AI reviewer is wired
 
-```
-tasktracker/
-├── README.md
-├── docker-compose.yml
-├── .github/workflows/ci.yml      # CI: backend ruff+pytest, frontend eslint+build+vitest
-├── backend/
-│   ├── requirements.txt
-│   ├── .env.example              # configuration template (placeholders only)
-│   ├── Dockerfile
-│   └── app/
-│       ├── main.py               # app factory, lifespan, CORS, router wiring
-│       ├── config.py             # pydantic-settings Settings
-│       ├── database.py           # engine, SessionLocal, create_all()
-│       ├── logging_config.py     # structured logging setup
-│       ├── seed.py               # idempotent demo data (python -m app.seed)
-│       ├── api/
-│       │   ├── deps.py           # DBSession / CurrentUser dependencies
-│       │   └── routers/          # health, auth, users, projects, tasks
-│       ├── core/security.py      # JWT + password hashing
-│       ├── models/               # SQLAlchemy ORM: user, project, task
-│       ├── schemas/              # Pydantic v2: user, project, task, token
-│       └── services/             # business logic: user/project/task services
-│   └── tests/                    # pytest: auth, tasks, projects
-└── frontend/
-    ├── package.json
-    ├── tsconfig.json
-    ├── vite.config.ts
-    ├── .eslintrc.cjs
-    ├── index.html
-    ├── Dockerfile
-    └── src/
-        ├── main.tsx App.tsx types.ts
-        ├── api/client.ts         # typed fetch client (base URL, auth header, errors)
-        ├── components/           # Header, Login, TaskBoard, TaskColumn, TaskCard, TaskForm
-        ├── pages/                # LoginPage, BoardPage
-        ├── hooks/                # useAuth, useProjects, useTasks
-        ├── styles/               # CSS modules + global styles
-        └── __tests__/            # Vitest component tests
-```
+This repo's self-hosted setup runs two key components:
+
+1. **GitHub App** — registers your fork of `qodo-ai/pr-agent` as a GitHub App (permissions: read contents, write pull requests / issues). The app receives webhooks for PR events and slash commands via the webhook server.
+
+2. **Webhook server** — a Render-hosted (or self-hosted) service running PR-Agent's `github_app` target, listening on `POST /api/v1/github_webhooks`. On PR open/reopen, it auto-runs `/describe` and `/review`; on PR comments, it dispatches slash commands.
+
+3. **Custom `/check_standards` command** — a hand-written tool and tuned prompt in the fork that catches team conventions (hardcoded secrets, camelCase naming, bare exceptions, missing tests). Triggers on-demand via `@bot /check_standards` or automatically on every new PR, depending on your `configuration.toml` settings.
+
+**The flow:** You push code → PR opens → webhook fires → bot clones the repo, runs your configured tools (e.g., `/describe`, `/review`, `/check_standards`), and posts a single GitHub comment with findings. Each push triggers an incremental review. No polling, no external services scanning your code — it all runs on your server.
+
+**Trade-off vs. marketplace:** you own the infrastructure, control the model and cost, and can add custom rules. You also run a server (even free-tier Render works for a workshop, ~USD 7/month for production). The marketplace action is instant but less flexible.
 
 ## Quick start (Docker)
-
-The fastest way to run the full stack. Builds both services, persists SQLite to a named volume, and wires CORS and the API base URL between them.
 
 ```bash
 docker-compose up --build
 ```
 
-- Frontend: http://localhost:5173
-- Backend API: http://localhost:8000
-- API docs (Swagger UI): http://localhost:8000/docs
-- Health check: http://localhost:8000/health
+- **Frontend** — http://localhost:5173
+- **Backend API** — http://localhost:8000
+- **Swagger UI** — http://localhost:8000/docs
+- **Health check** — http://localhost:8000/health
 
-On startup the backend runs an idempotent seed, so you can sign in immediately with the demo account
-and land on a populated board:
-
+Demo account (auto-seeded):
 - **Email:** `demo@tasktracker.dev`
 - **Password:** `change-me`
 
-Optional overrides (all have safe defaults) can be exported before running, for example `SECRET_KEY`, `ACCESS_TOKEN_EXPIRE_MINUTES`, `BACKEND_CORS_ORIGINS`, `LOG_LEVEL` and `VITE_API_BASE_URL` (and the `SEED_USER_*` credentials).
-
 ## Local development
 
-Run the backend and frontend in two terminals.
-
 ### Backend
-
 ```bash
 cd backend
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env                  # then edit values as needed
-uvicorn app.main:app --reload         # http://localhost:8000
+cp .env.example .env
+uvicorn app.main:app --reload
 ```
 
-Optionally load demo data (a demo user, a sample project and a few tasks):
-
+Load demo data (optional):
 ```bash
 python -m app.seed
 ```
 
-For a production-style run:
-
-```bash
-uvicorn app.main:app --host 0.0.0.0 --port 8000
-```
-
 ### Frontend
-
 ```bash
 cd frontend
 npm install
-npm run dev                           # http://localhost:5173
+npm run dev
 ```
 
-The dev server expects the API at `http://localhost:8000` by default; override it with `VITE_API_BASE_URL` (see `frontend/.env.example`). To produce a static bundle:
+Expects the API at `http://localhost:8000` by default. Override with `VITE_API_BASE_URL`.
 
-```bash
-npm run build
-npm run preview                       # serve the built bundle locally
+## The workshop: Part B (self-hosted)
+
+**TechLeadConf 2026 workshop:** *"AI-Powered Code Review"* — June 2, 2026, remote.
+
+### The demo repository
+
+This repo (`tasktracker-selfhosted`) is Part B's demo. The `demo/add-search` branch carries a feature PR with **intentionally planted review-worthy code**:
+
+- **Backend:** hardcoded secret-like token, O(n) in-memory search instead of a DB query, raw-SQL string interpolation, bare `except:` clause, missing type hints, no tests.
+- **Frontend:** `any` types, missing React list keys, unbound search keystroke (no debounce), left-in `console.log`, `dangerouslySetInnerHTML` (XSS risk).
+
+These issues are not marked or commented. When the AI reviewer (manually or auto) analyzes the PR, it surfaces these findings in realistic PR comments — showing you exactly what a self-hosted setup can catch. The `/check_standards` command is tuned to spot conventions like hardcoded secrets and bare exceptions.
+
+### Part B workflow (what you'll see live)
+
+1. **Repo tour** — the fork layout: `pr_agent/tools/`, `pr_agent/settings/*.toml` (prompts), `pr_agent/servers/github_app.py` (webhook handler).
+2. **Build the image** — `docker build -f docker/Dockerfile --target=github_app …` (shown via GIF, not built live).
+3. **Register a GitHub App** — create the app in *Settings → Developer settings → GitHub Apps*, get the App ID and private key.
+4. **Deploy to Render** — push the image to GHCR, deploy two Render Starter services (primary + backup), wire the webhook URL.
+5. **Add `/check_standards`** — the custom tool + prompt are already in a branch; show the diff, redeploy.
+6. **Trigger it** — open the PR on `demo/add-search`, watch the bot auto-review; comment `/check_standards` and see the custom tool reply; push a commit and see incremental review fire.
+
+### Running the bot yourself
+
+To run the self-hosted bot on your own repo:
+
+1. **Fork** `qodo-ai/pr-agent` (the official PR-Agent repo).
+2. **Add your custom tools** in `pr_agent/tools/` (copy the `/check_standards` example).
+3. **Update the registration** in `pr_agent/agent/pr_agent.py` (add your tool to `command2class`).
+4. **Build the `github_app` Docker target** and push to a registry (GHCR, Docker Hub, etc.).
+5. **Register a GitHub App** in your org's settings, subscribe to PR and issue-comment events.
+6. **Deploy the webhook server** (Render, AWS Lambda + webhook bridge, your own server, etc.).
+7. **Set automatic triggers** in `pr_agent/settings/configuration.toml` under `[github_app]` — define which commands run on PR open, push, etc.
+
+The bot will then auto-review every PR in that repo. Customize the prompts in `pr_agent/settings/*.toml` to match your team's style guide.
+
+## Project structure
+
+```
+tasktracker-selfhosted/
+├── README.md
+├── docker-compose.yml
+├── .github/workflows/ci.yml
+├── backend/
+│   ├── requirements.txt
+│   ├── .env.example
+│   ├── Dockerfile
+│   └── app/
+│       ├── main.py, config.py, database.py, logging_config.py, seed.py
+│       ├── api/routers/  (health, auth, users, projects, tasks)
+│       ├── core/security.py
+│       ├── models/       (user, project, task ORM models)
+│       ├── schemas/      (Pydantic request/response models)
+│       ├── services/     (business logic layer)
+│       └── tests/        (pytest: auth, projects, tasks, conftest fixtures)
+└── frontend/
+    ├── package.json, tsconfig.json, vite.config.ts, .eslintrc.cjs
+    ├── Dockerfile
+    └── src/
+        ├── main.tsx, App.tsx, types.ts
+        ├── api/client.ts      (typed fetch + JWT bearer auth)
+        ├── components/        (Header, Login, TaskBoard, TaskColumn, TaskCard, TaskForm)
+        ├── pages/             (LoginPage, BoardPage)
+        ├── hooks/             (useAuth, useProjects, useTasks)
+        ├── styles/            (CSS modules + global)
+        └── __tests__/         (Vitest component tests)
 ```
 
 ## API summary
 
-All endpoints are versioned under `/api/v1`, except the health check at `/health`. Endpoints marked **Auth** require an `Authorization: Bearer <token>` header.
+All endpoints versioned at `/api/v1` (except `/health`). Endpoints marked **Auth** require `Authorization: Bearer <token>`.
 
 | Method | Path | Auth | Description |
 |--------|------|:----:|-------------|
-| `GET`    | `/health`                  |     | Liveness check; returns status and version. |
-| `POST`   | `/api/v1/auth/register`    |     | Register a user `{email, password, full_name}` → `201 UserOut`. |
-| `POST`   | `/api/v1/auth/login`       |     | Log in with JSON `{email, password}` → `{access_token, token_type: "bearer"}`. |
-| `GET`    | `/api/v1/users/me`         |  ✓  | Current authenticated user (`UserOut`). |
+| `GET`    | `/health`                  |     | Liveness check. |
+| `POST`   | `/api/v1/auth/register`    |     | Register user. |
+| `POST`   | `/api/v1/auth/login`       |     | Log in, get JWT. |
+| `GET`    | `/api/v1/users/me`         |  ✓  | Current user. |
 | `GET`    | `/api/v1/projects`         |  ✓  | List your projects. |
-| `POST`   | `/api/v1/projects`         |  ✓  | Create a project → `201 ProjectOut`. |
-| `GET`    | `/api/v1/projects/{id}`    |  ✓  | Get a project. |
-| `PATCH`  | `/api/v1/projects/{id}`    |  ✓  | Partially update a project. |
-| `DELETE` | `/api/v1/projects/{id}`    |  ✓  | Delete a project and its tasks → `204`. |
-| `GET`    | `/api/v1/tasks`            |  ✓  | List tasks; filters `project_id`, `status`, `assignee_id`, `page`, `size` → `{items, total, page, size}`. |
-| `POST`   | `/api/v1/tasks`            |  ✓  | Create a task → `201 TaskOut`. |
-| `GET`    | `/api/v1/tasks/{id}`       |  ✓  | Get a task. |
-| `PATCH`  | `/api/v1/tasks/{id}`       |  ✓  | Partially update a task. |
-| `DELETE` | `/api/v1/tasks/{id}`       |  ✓  | Delete a task → `204`. |
-| `POST`   | `/api/v1/tasks/{id}/move`  |  ✓  | Move a task to a new column with `{status}` → `TaskOut`. |
+| `POST`   | `/api/v1/projects`         |  ✓  | Create project. |
+| `GET`    | `/api/v1/projects/{id}`    |  ✓  | Get project. |
+| `PATCH`  | `/api/v1/projects/{id}`    |  ✓  | Update project. |
+| `DELETE` | `/api/v1/projects/{id}`    |  ✓  | Delete project. |
+| `GET`    | `/api/v1/tasks`            |  ✓  | List tasks; filter by project, status, assignee; paginate. |
+| `POST`   | `/api/v1/tasks`            |  ✓  | Create task. |
+| `GET`    | `/api/v1/tasks/{id}`       |  ✓  | Get task. |
+| `PATCH`  | `/api/v1/tasks/{id}`       |  ✓  | Update task. |
+| `DELETE` | `/api/v1/tasks/{id}`       |  ✓  | Delete task. |
+| `POST`   | `/api/v1/tasks/{id}/move`  |  ✓  | Move task to new status. |
 
-Response models (`UserOut`, `ProjectOut`, `TaskOut`) are the public shapes; `UserOut` never includes the password hash. The full, interactive specification is available at `/docs` (Swagger UI) and `/redoc` when the backend is running.
-
-### Data model
-
-| Entity   | Fields |
-|----------|--------|
-| User     | `id`, `email`, `full_name`, `is_active`, `created_at` |
-| Project  | `id`, `name`, `description`, `owner_id`, `created_at` |
-| Task     | `id`, `title`, `description`, `status` (`todo`/`in_progress`/`done`), `priority` (`low`/`medium`/`high`), `project_id`, `assignee_id`, `due_date`, `created_at`, `updated_at` |
+Full interactive specification at `/docs` (Swagger UI) when the backend runs.
 
 ## Testing & linting
 
 ### Backend
-
 ```bash
 cd backend
-ruff check .          # lint
-pytest                # tests
+ruff check .       # lint
+pytest             # tests (40+ test functions)
 ```
 
 ### Frontend
-
 ```bash
 cd frontend
-npm run lint          # eslint
-npm run build         # type-check + production build
-npm run test          # vitest
+npm run lint       # eslint
+npm run build      # tsc + vite (type-check + bundle)
+npm run test       # vitest (component tests)
 ```
 
-Both suites run on every push and pull request via the **CI** GitHub Actions workflow (`.github/workflows/ci.yml`): the backend job runs `ruff check .` then `pytest`; the frontend job runs `npm run lint`, `npm run build` and `npm run test`.
+All suites run on every push and PR via GitHub Actions (`.github/workflows/ci.yml`).
 
 ## Configuration
 
-Backend configuration is environment-driven via `pydantic-settings`. Copy the template and adjust values for your environment:
+Backend config is environment-driven via pydantic-settings. Copy and edit:
 
 ```bash
 cp backend/.env.example backend/.env
 ```
 
-Settings are read from the process environment first, then from a local `.env` file. Key variables:
+Key variables:
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `APP_NAME` | `TaskTracker` | Application name shown in OpenAPI metadata. |
-| `ENVIRONMENT` | `development` | One of `development`, `staging`, `production`. |
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `APP_NAME` | `TaskTracker` | App name in OpenAPI. |
+| `ENVIRONMENT` | `development` | One of development / staging / production. |
 | `LOG_LEVEL` | `INFO` | Logging level. |
-| `DATABASE_URL` | `sqlite:///./data/app.db` | SQLAlchemy URL; swap for a Postgres URL in production. |
+| `DATABASE_URL` | `sqlite:///./data/app.db` | SQLAlchemy URL; use a Postgres URL in production. |
 | `SECRET_KEY` | `change-me` | JWT signing key — **set a strong value outside local dev**. |
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | `60` | Access-token lifetime in minutes. |
-| `JWT_ALGORITHM` | `HS256` | JWT signing algorithm. |
-| `BACKEND_CORS_ORIGINS` | `http://localhost:5173,http://127.0.0.1:5173` | Comma-separated allowed frontend origins. |
-| `SEED_USER_EMAIL` / `SEED_USER_PASSWORD` / `SEED_USER_NAME` | demo values | Credentials used by `app/seed.py`. |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | `60` | Token lifetime. |
+| `BACKEND_CORS_ORIGINS` | `http://localhost:5173,http://127.0.0.1:5173` | Comma-separated allowed origins. |
 
-The frontend reads a single build-time variable, `VITE_API_BASE_URL` (default `http://localhost:8000`), documented in `frontend/.env.example`. Because Vite inlines `VITE_*` variables into the static bundle, it must be set at build time.
+Frontend reads `VITE_API_BASE_URL` at build time (default `http://localhost:8000`). Vite inlines `VITE_*` into the bundle, so override it at build time:
 
-> **Secrets:** `.env.example` files contain placeholders only. Never commit a real `.env` or production secret; always override `SECRET_KEY` (and seed credentials) outside local development.
+```bash
+VITE_API_BASE_URL=https://api.example.com npm run build
+```
+
+Secrets: `.env.example` files hold placeholders only. Never commit real secrets; always override `SECRET_KEY` and seed credentials outside development.
+
+## Resources & links
+
+- **Workshop page** — https://techleadconf.com/#workshop-ai-powered-code-review
+- **PR-Agent official** — https://github.com/qodo-ai/pr-agent
+- **PR-Agent docs** — https://docs.pr-agent.ai
+- **TechLeadConf 2026** — https://techleadconf.com (main conference, June 11–12)
+- **Workshop companion talk** — *"LLM Integration Patterns for Engineering Infrastructure"* (same author, same day, main conference track)
 
 ## License
 
 Released under the MIT License.
+
+---
+
+**Recorded at TechLeadConf 2026.** This workshop and repo are public portfolio and conference evidence. Read the code, fork it, self-host the bot, and extend it for your team.
+
