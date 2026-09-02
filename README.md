@@ -2,7 +2,7 @@
 
 A production-like task management SPA reviewed in real-time by a **self-hosted AI code reviewer** — the same TaskTracker app from Part A, now paired with your own fork of PR-Agent running as a GitHub App.
 
-This repo is part of the **TechLeadConf 2026 workshop** *"AI-Powered Code Review"* and serves as Part B of a hands-on two-part demonstration: after seeing the out-of-the-box marketplace action in Part A, you'll understand how to self-host the same tool, extend it with custom rules, and run it on your own infrastructure. The `demo/add-search` branch contains intentional code-review teaching artifacts — realistic issues for the AI reviewer to surface.
+This repo is part of the **TechLeadConf 2026 workshop** *"AI-Powered Code Review"* and serves as Part B of a hands-on two-part demonstration: after seeing the out-of-the-box marketplace action in Part A, you'll understand how to self-host the same tool, extend it with custom rules, and run it on your own infrastructure. It is also the follow-up path for the O'Reilly live course *AI Code Review in Production*: the course ends at the marketplace Action, and this repo shows what to build when you outgrow it. The `demo/add-search` branch contains intentional code-review teaching artifacts — realistic issues for the AI reviewer to surface.
 
 ## What this is
 
@@ -10,7 +10,7 @@ A **clean, full-stack app** (FastAPI backend + React/TypeScript frontend, tests,
 
 **For your team:** a template for shipping your own AI code reviewer with fine-grained control — set your model, tune the prompts, deploy once, and let it scale across your repos.
 
-**For this workshop:** a live demo of self-hosting, custom tooling, and incremental review as code changes.
+**For the sessions:** the live Part B demo at TechLeadConf 2026, and the self-hosting follow-up for the O'Reilly live course.
 
 ## Features
 
@@ -85,7 +85,7 @@ Expects the API at `http://localhost:8000` by default. Override with `VITE_API_B
 
 ## The workshop: Part B (self-hosted)
 
-**TechLeadConf 2026 workshop:** *"AI-Powered Code Review"* — June 2, 2026, remote.
+**TechLeadConf 2026 workshop:** *"AI-Powered Code Review"*, June 2, 2026, remote. **O'Reilly live course:** *AI Code Review in Production*, where this repo is the "when you outgrow the Action" follow-up; start from "Running the bot yourself" below.
 
 ### The demo repository
 
@@ -225,6 +225,7 @@ Secrets: `.env.example` files hold placeholders only. Never commit real secrets;
 ## Resources & links
 
 - **Workshop page** — https://techleadconf.com/#workshop-ai-powered-code-review
+- **O'Reilly live course:** *AI Code Review in Production* (companion repo: https://github.com/SerhiiYakovenko/tasktracker)
 - **PR-Agent official** — https://github.com/qodo-ai/pr-agent
 - **PR-Agent docs** — https://docs.pr-agent.ai
 - **TechLeadConf 2026** — https://techleadconf.com (main conference, June 11–12)
@@ -236,5 +237,5 @@ Released under the MIT License.
 
 ---
 
-**Recorded at TechLeadConf 2026.** This workshop and repo are public portfolio and conference evidence. Read the code, fork it, self-host the bot, and extend it for your team.
+**Recorded at TechLeadConf 2026; follow-up material for the O'Reilly live course.** This repo is public portfolio and conference evidence. Read the code, fork it, self-host the bot, and extend it for your team.
 
